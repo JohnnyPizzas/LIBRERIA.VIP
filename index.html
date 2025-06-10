@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía Interactiva de Películas para Programadores</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: La aplicación está diseñada como un panel de control interactivo en lugar de una lista estática para mejorar la exploración del usuario. La estructura se divide en: 1) Filtros temáticos (botones) que permiten a los usuarios acotar la selección según sus intereses (p. ej., Historia, IA). 2) Una galería de tarjetas de películas que se actualiza dinámicamente según el filtro. 3) Un panel de detalles que muestra la información de la película seleccionada. 4) Un gráfico de barras cronológico para visualizar la distribución temporal de las películas. Este diseño fomenta el descubrimiento y la interacción, permitiendo al usuario abordar el contenido desde diferentes ángulos (temático, cronológico o individual) en una sola vista cohesiva. -->
+    <!-- Visualization & Content Choices: 1. Lista de películas -> Galería de tarjetas interactivas (HTML/CSS/JS): Objetivo: Organizar y seleccionar. Se eligieron tarjetas para una mayor participación visual. La interacción de clic actualiza otros componentes. 2. Descripción -> Panel de detalles dinámico (JS): Objetivo: Informar. Muestra el contenido de la película seleccionada, proporcionando contexto bajo demanda. 3. Temas implícitos -> Botones de filtro (JS): Objetivo: Organizar. Transforma los temas del informe en controles de interfaz de usuario directos, permitiendo la exploración de subconjuntos de datos. 4. Años de estreno -> Gráfico de barras horizontal (Chart.js): Objetivo: Comparar y mostrar cambios. Visualiza la línea de tiempo de las películas, ofreciendo una perspectiva que el texto por sí solo no puede. La interacción de resaltado al seleccionar conecta el gráfico con la galería. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px;
+            max-height: 50vh;
+        }
+        .card-active {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(13, 148, 136, 0.2), 0 4px 6px -2px rgba(13, 148, 136, 0.1);
+            border-color: #0d9488; /* teal-600 */
+        }
+        .filter-btn-active {
+            background-color: #0d9488; /* teal-600 */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-teal-800 mb-2">Cine para Programadores</h1>
+            <p class="text-md md:text-lg text-stone-600 max-w-3xl mx-auto">Una guía interactiva para explorar películas que capturan la esencia, la historia y la cultura del mundo de la tecnología y la programación.</p>
+        </header>
+
+        <div id="filters" class="flex flex-wrap justify-center gap-2 mb-8">
+            <!-- Filter buttons will be injected here -->
+        </div>
+
+        <main class="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-10">
+            <div id="movie-gallery" class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4 h-full max-h-[70vh] overflow-y-auto pr-2">
+                <!-- Movie cards will be injected here -->
+            </div>
+            
+            <div id="movie-details" class="lg:col-span-3 bg-white p-6 rounded-xl shadow-md border border-stone-200 flex items-center justify-center min-h-[400px]">
+                <div class="text-center">
+                    <p class="text-stone-500 text-lg">Selecciona una película de la galería para ver los detalles.</p>
+                </div>
+            </div>
+        </main>
+
+        <section class="bg-white p-4 sm:p-6 rounded-xl shadow-md border border-stone-200">
+            <h2 class="text-xl font-bold text-center text-teal-800 mb-4">Línea de Tiempo Cinematográfica</h2>
+            <div class="chart-container">
+                <canvas id="moviesChart"></canvas>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        const movieData = [
+            { id: 1, title: 'WarGames', year: 1983, theme: 'Cultura Hacker', description: 'Un joven hacker accede sin saberlo a una supercomputadora militar de EE. UU. y casi desencadena la Tercera Guerra Mundial. Fue una de las primeras películas en mostrar el hacking al público general y planteó preguntas sobre la inteligencia artificial y la seguridad nacional que siguen siendo relevantes.' },
+            { id: 2, title: 'Sneakers', year: 1992, theme: 'Seguridad', description: 'Una película de atracos inteligente y entretenida sobre un grupo de expertos en seguridad (hackers "de sombrero blanco") que son contratados para probar sistemas de seguridad. Ofrece una visión más realista y fundamentada de la ingeniería social, la criptografía y la ciberseguridad.' },
+            { id: 3, title: 'Hackers', year: 1995, theme: 'Cultura Hacker', description: 'Aunque técnicamente es muy imprecisa, esta película es un clásico de culto que captura perfectamente la estética y el espíritu de la subcultura ciberpunk y hacker de los años 90. Es divertida, estilizada y transmite la emoción de explorar y desafiar los límites de los sistemas digitales.' },
+            { id: 4, title: 'Pirates of Silicon Valley', year: 1999, theme: 'Historia', description: 'Este docudrama es fundamental para cualquiera que quiera entender los orígenes de la revolución de las computadoras personales. Se centra en la intensa rivalidad entre Steve Jobs (Apple) y Bill Gates (Microsoft). Verás cómo la visión y la innovación dieron forma al mundo tecnológico.' },
+            { id: 5, title: 'The Social Network', year: 2010, theme: 'Startups', description: 'Narra la historia de la creación de Facebook. Es una excelente película para entender la mentalidad de una startup, la pasión por construir algo desde cero y la cruda realidad del negocio tecnológico. Muestra maratones de código y resolución de problemas algorítmicos.' },
+            { id: 6, title: 'The Imitation Game', year: 2014, theme: 'Historia', description: 'Es la historia de Alan Turing, el genio matemático considerado el padre de la computación. La película se enfoca en su trabajo para descifrar el código "Enigma". Es una mirada conmovedora a los fundamentos de la criptografía y la computación.' },
+            { id: 7, title: 'Ex Machina', year: 2014, theme: 'Inteligencia Artificial', description: 'Un joven programador evalúa la conciencia de una IA avanzada. Un thriller psicológico que explora el Test de Turing, la conciencia y la ética en la IA. Te hará pensar profundamente sobre el futuro de lo que programas.' }
+        ];
+
+        let activeFilter = 'Todos';
+        let activeMovieId = null;
+        let moviesChart = null;
+
+        const galleryEl = document.getElementById('movie-gallery');
+        const detailsEl = document.getElementById('movie-details');
+        const filtersEl = document.getElementById('filters');
+
+        function renderGallery() {
+            galleryEl.innerHTML = '';
+            const filteredMovies = activeFilter === 'Todos' 
+                ? movieData 
+                : movieData.filter(m => m.theme === activeFilter);
+
+            filteredMovies.sort((a, b) => a.year - b.year);
+
+            if (filteredMovies.length === 0) {
+                 galleryEl.innerHTML = `<p class="text-stone-500 text-center col-span-full">No hay películas en esta categoría.</p>`;
+                 return;
+            }
+
+            filteredMovies.forEach(movie => {
+                const card = document.createElement('div');
+                card.className = `p-4 bg-white rounded-lg shadow-sm border border-stone-200 cursor-pointer transition-all duration-300 ease-in-out hover:shadow-lg hover:border-teal-500 ${movie.id === activeMovieId ? 'card-active' : ''}`;
+                card.dataset.id = movie.id;
+                card.innerHTML = `
+                    <h3 class="font-bold text-lg text-stone-800">${movie.title}</h3>
+                    <p class="text-sm text-stone-500">${movie.year}</p>
+                `;
+                card.addEventListener('click', () => handleCardClick(movie.id));
+                galleryEl.appendChild(card);
+            });
+        }
+
+        function renderDetails(movieId) {
+            const movie = movieData.find(m => m.id === movieId);
+            if (movie) {
+                detailsEl.innerHTML = `
+                    <div class="animate-fade-in">
+                        <span class="inline-block bg-teal-100 text-teal-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">${movie.theme}</span>
+                        <h2 class="text-3xl font-bold mb-2">${movie.title}</h2>
+                        <p class="text-lg text-stone-500 mb-6">${movie.year}</p>
+                        <h4 class="font-bold text-lg mb-2 text-teal-700">¿Por qué verla?</h4>
+                        <p class="text-stone-700 leading-relaxed">${movie.description}</p>
+                    </div>
+                `;
+            } else {
+                 detailsEl.innerHTML = `<div class="text-center"><p class="text-stone-500 text-lg">Selecciona una película de la galería para ver los detalles.</p></div>`;
+            }
+        }
+        
+        function renderFilters() {
+            const themes = ['Todos', ...new Set(movieData.map(m => m.theme))];
+            filtersEl.innerHTML = themes.map(theme => `
+                <button data-theme="${theme}" class="filter-btn px-4 py-2 text-sm font-semibold rounded-full transition-all duration-200 ease-in-out border border-stone-300 hover:bg-teal-500 hover:text-white hover:border-teal-500 ${theme === activeFilter ? 'filter-btn-active' : 'bg-white text-stone-700'}">
+                    ${theme}
+                </button>
+            `).join('');
+
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => handleFilterClick(btn.dataset.theme));
+            });
+        }
+
+        function handleCardClick(movieId) {
+            activeMovieId = movieId;
+            renderGallery();
+            renderDetails(movieId);
+            updateChartHighlight();
+        }
+
+        function handleFilterClick(theme) {
+            activeFilter = theme;
+            activeMovieId = null; 
+            renderFilters();
+            renderGallery();
+            renderDetails(null);
+            updateChartHighlight();
+        }
+
+        function createChart() {
+            const ctx = document.getElementById('moviesChart').getContext('2d');
+            const sortedData = [...movieData].sort((a,b) => a.year - b.year);
+            const labels = sortedData.map(m => m.title);
+            const data = sortedData.map(m => m.year);
+
+            moviesChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Año de Estreno',
+                        data: data,
+                        backgroundColor: (context) => {
+                            const movie = sortedData[context.dataIndex];
+                            return movie.id === activeMovieId ? '#0d9488' : '#9ca3af'; 
+                        },
+                        borderColor: (context) => {
+                             const movie = sortedData[context.dataIndex];
+                            return movie.id === activeMovieId ? '#047857' : '#6b7280';
+                        },
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: false,
+                            min: 1980,
+                            ticks: {
+                                callback: function(value) {
+                                    return value;
+                                },
+                                color: '#4b5563'
+                            },
+                             grid: {
+                                color: '#e5e7eb'
+                            }
+                        },
+                        y: {
+                             ticks: {
+                                color: '#4b5563'
+                            },
+                             grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Estreno: ${context.raw}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChartHighlight() {
+            if (!moviesChart) return;
+            const sortedData = [...movieData].sort((a,b) => a.year - b.year);
+            
+            moviesChart.data.datasets[0].backgroundColor = sortedData.map(movie => 
+                movie.id === activeMovieId ? '#0d9488' : '#9ca3af'
+            );
+            moviesChart.data.datasets[0].borderColor = sortedData.map(movie => 
+                movie.id === activeMovieId ? '#047857' : '#6b7280'
+            );
+            
+            moviesChart.update();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderFilters();
+            renderGallery();
+            createChart();
+        });
+
+    </script>
+</body>
+</html>
